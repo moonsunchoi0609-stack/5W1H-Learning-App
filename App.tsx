@@ -108,7 +108,7 @@ const App = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight">Inquiry Life AI</h1>
-              <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider hidden sm:block">Search & Analyze Platform</p>
+              <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider hidden sm:block">AI & Wiki Search Platform</p>
             </div>
           </div>
           

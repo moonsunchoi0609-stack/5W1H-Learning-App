@@ -38,7 +38,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       {/* Search Card */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
         <h2 className="text-sm font-bold text-slate-500 mb-4 flex items-center gap-2">
-          <Globe size={16} /> 지식 탐험
+          <Globe size={16} /> 주제 탐색
         </h2>
         <form onSubmit={handleSubmit} className="relative mb-6">
           <input
@@ -54,7 +54,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             disabled={isSearching || !query.trim()}
             className="absolute right-2 top-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm"
           >
-            {isSearching ? <Loader2 size={14} className="animate-spin"/> : 'Go'}
+            {isSearching ? <Loader2 size={14} className="animate-spin"/> : '검색'}
           </button>
         </form>
 

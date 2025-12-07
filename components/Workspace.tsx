@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { Article, W1HAnswers } from '../types';
 import W1HInput from './W1HInput';
-import { analyzeArticleWithAI, simplifyTextWithAI } from '../services/geminiService';
+import { analyzeArticleWithAI, refineTextForW1H } from '../services/geminiService';
 
 interface WorkspaceProps {
   article: Article | null;
@@ -25,13 +25,13 @@ const Workspace: React.FC<WorkspaceProps> = ({
 }) => {
   const [isAiWorking, setIsAiWorking] = useState(false);
   const [displayContent, setDisplayContent] = useState<string>('');
-  const [isSimplified, setIsSimplified] = useState(false);
+  const [isRefined, setIsRefined] = useState(false);
 
   // Update local display content when article changes
   React.useEffect(() => {
     if (article) {
       setDisplayContent(article.content);
-      setIsSimplified(false);
+      setIsRefined(false);
     }
   }, [article]);
 
@@ -43,7 +43,8 @@ const Workspace: React.FC<WorkspaceProps> = ({
     if (!article) return;
     setIsAiWorking(true);
     try {
-      const result = await analyzeArticleWithAI(article.content);
+      // Use the displayed content (which might be refined) for better analysis results
+      const result = await analyzeArticleWithAI(displayContent);
       setAnswers(result);
     } catch (error) {
       alert("AI 분석에 실패했습니다. 잠시 후 다시 시도해주세요.");
@@ -52,15 +53,16 @@ const Workspace: React.FC<WorkspaceProps> = ({
     }
   };
 
-  const handleAiSimplify = async () => {
-    if (!article || isSimplified) return;
+  const handleAiRefine = async () => {
+    if (!article || isRefined) return;
     setIsAiWorking(true);
     try {
-      const simpleText = await simplifyTextWithAI(article.content);
-      setDisplayContent(simpleText);
-      setIsSimplified(true);
+      const refinedText = await refineTextForW1H(article.content);
+      setDisplayContent(refinedText);
+      setIsRefined(true);
     } catch (error) {
       console.error(error);
+      alert("글 다듬기에 실패했습니다.");
     } finally {
       setIsAiWorking(false);
     }
@@ -69,7 +71,7 @@ const Workspace: React.FC<WorkspaceProps> = ({
   const handleRestoreOriginal = () => {
     if (article) {
       setDisplayContent(article.content);
-      setIsSimplified(false);
+      setIsRefined(false);
     }
   };
 
@@ -94,30 +96,30 @@ const Workspace: React.FC<WorkspaceProps> = ({
       <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center bg-white/95 backdrop-blur rounded-t-2xl sticky top-0 z-10 print-hidden shadow-sm gap-3 md:gap-0">
         <h2 className="font-bold text-slate-700 flex items-center gap-2 text-sm md:text-base">
           <PenTool size={18} className="text-indigo-600" />
-          워크스페이스
+          탐구 활동
         </h2>
         
         <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
           {/* AI Tools */}
           <div className="flex items-center gap-2 mr-2 pr-4 border-r border-slate-200">
              <button 
-              onClick={isSimplified ? handleRestoreOriginal : handleAiSimplify}
+              onClick={isRefined ? handleRestoreOriginal : handleAiRefine}
               disabled={isAiWorking}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border whitespace-nowrap
-                ${isSimplified 
+                ${isRefined 
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' 
                   : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600'
                 }`}
             >
-              {isAiWorking && !answers.who ? <Wand2 size={14} className="animate-spin"/> : <Wand2 size={14} />}
-              {isSimplified ? '원문 보기' : 'AI 쉽게 읽기'}
+              {isAiWorking && !isRefined ? <Wand2 size={14} className="animate-spin"/> : <Wand2 size={14} />}
+              {isRefined ? '원문 보기' : '글 다듬기 (AI)'}
             </button>
             <button 
               onClick={handleAiAnalyze}
               disabled={isAiWorking}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold transition-all whitespace-nowrap"
             >
-              <Activity size={14} className={isAiWorking ? "animate-pulse" : ""} />
+              <Activity size={14} className={isAiWorking && !isRefined ? "animate-pulse" : ""} />
               AI 자동 분석
             </button>
           </div>
@@ -142,9 +144,9 @@ const Workspace: React.FC<WorkspaceProps> = ({
             <span className="text-xs font-medium text-slate-400 flex items-center gap-1 bg-slate-50 px-2 py-1 rounded print-hidden">
               <Newspaper size={12} /> {article.source}
             </span>
-            {isSimplified && (
+            {isRefined && (
                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full flex items-center gap-1 animate-fade-in-up">
-                 <Wand2 size={10} /> AI가 쉽게 요약함
+                 <Wand2 size={10} /> 육하원칙 분석용으로 다듬어짐
                </span>
             )}
           </div>
@@ -153,7 +155,7 @@ const Workspace: React.FC<WorkspaceProps> = ({
           </h1>
           
           {/* Content Box */}
-          <div className={`prose prose-lg max-w-none text-slate-700 leading-9 md:leading-10 bg-slate-50 p-8 rounded-2xl border border-slate-100 print-bg-white print-border-0 print-p-0 print-text-black shadow-inner transition-all duration-500 ${isSimplified ? 'ring-2 ring-emerald-100 bg-emerald-50/30' : ''}`}>
+          <div className={`prose prose-lg max-w-none text-slate-700 leading-9 md:leading-10 bg-slate-50 p-8 rounded-2xl border border-slate-100 print-bg-white print-border-0 print-p-0 print-text-black shadow-inner transition-all duration-500 ${isRefined ? 'ring-2 ring-emerald-100 bg-emerald-50/30' : ''}`}>
             {displayContent.split('\n').filter(p => p.trim() !== '').map((paragraph, idx) => (
               <p key={idx} className="mb-6 last:mb-0 text-justify break-keep whitespace-pre-line">
                 {paragraph}
@@ -176,7 +178,7 @@ const Workspace: React.FC<WorkspaceProps> = ({
             {/* Call to action for AI if empty */}
             {!answers.who && !isAiWorking && (
                <button onClick={handleAiAnalyze} className="print-hidden flex items-center gap-2 text-indigo-600 hover:text-indigo-800 text-xs font-bold hover:underline transition-all">
-                 <Activity size={14}/> AI에게 도움 요청하기 <ArrowRight size={14}/>
+                 <Activity size={14}/> AI 도움 받기 <ArrowRight size={14}/>
                </button>
             )}
           </div>
@@ -186,7 +188,7 @@ const Workspace: React.FC<WorkspaceProps> = ({
               label="누가" engLabel="WHO" icon={User}
               value={answers.who}
               onChange={(e) => handleInputChange('who', e.target.value)}
-              placeholder="기사의 주인공이나 관련 인물은 누구입니까?" 
+              placeholder="이 이야기의 주인공은 누구인가요?" 
               accentColor="border-red-500"
               isAiLoading={isAiWorking}
             />
@@ -194,7 +196,7 @@ const Workspace: React.FC<WorkspaceProps> = ({
               label="언제" engLabel="WHEN" icon={Calendar}
               value={answers.when}
               onChange={(e) => handleInputChange('when', e.target.value)}
-              placeholder="사건이 일어난 시점은 언제입니까?" 
+              placeholder="사건이 일어난 시간이나 때는 언제인가요?" 
               accentColor="border-orange-500"
               isAiLoading={isAiWorking}
             />
@@ -202,7 +204,7 @@ const Workspace: React.FC<WorkspaceProps> = ({
               label="어디서" engLabel="WHERE" icon={MapPin}
               value={answers.where}
               onChange={(e) => handleInputChange('where', e.target.value)}
-              placeholder="배경이 되는 장소는 어디입니까?" 
+              placeholder="사건이 발생한 장소는 어디인가요?" 
               accentColor="border-amber-500"
               isAiLoading={isAiWorking}
             />
@@ -210,7 +212,7 @@ const Workspace: React.FC<WorkspaceProps> = ({
               label="무엇을" engLabel="WHAT" icon={Activity}
               value={answers.what}
               onChange={(e) => handleInputChange('what', e.target.value)}
-              placeholder="주요 사건이나 대상은 무엇입니까?" 
+              placeholder="어떤 사건이나 행동이 있었나요?" 
               accentColor="border-emerald-500"
               isAiLoading={isAiWorking}
             />
@@ -218,7 +220,7 @@ const Workspace: React.FC<WorkspaceProps> = ({
               label="어떻게" engLabel="HOW" icon={Lightbulb}
               value={answers.how}
               onChange={(e) => handleInputChange('how', e.target.value)}
-              placeholder="어떤 과정이나 방법으로 진행되었습니까?" 
+              placeholder="어떤 방법이나 과정으로 일어났나요?" 
               accentColor="border-sky-500"
               isAiLoading={isAiWorking}
             />
@@ -226,7 +228,7 @@ const Workspace: React.FC<WorkspaceProps> = ({
               label="왜" engLabel="WHY" icon={HelpCircle}
               value={answers.why}
               onChange={(e) => handleInputChange('why', e.target.value)}
-              placeholder="그 일이 일어난 원인은 무엇입니까?" 
+              placeholder="이 일이 일어난 이유나 원인은 무엇인가요?" 
               accentColor="border-violet-500"
               isAiLoading={isAiWorking}
             />
@@ -235,7 +237,7 @@ const Workspace: React.FC<WorkspaceProps> = ({
 
         {/* Print Footer */}
         <div className="hidden print-block mt-8 pt-4 border-t border-slate-300 text-center">
-          <p className="text-xs text-slate-400 font-medium">Inquiry Life AI - 뉴스 분석 학습지</p>
+          <p className="text-xs text-slate-400 font-medium">탐구 생활 - 뉴스 분석 학습지</p>
           <p className="text-[10px] text-slate-300 mt-1">{new Date().toLocaleDateString()} 출력</p>
         </div>
       </div>
