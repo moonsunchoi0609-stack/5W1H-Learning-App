@@ -4,7 +4,7 @@ import {
   User, Calendar, MapPin, Activity, Lightbulb, HelpCircle, 
   Newspaper, ArrowRight
 } from 'lucide-react';
-import { Article, W1HAnswers } from '../types';
+import { Article, W1HAnswers, W1HQuotes } from '../types';
 import W1HInput from './W1HInput';
 import { analyzeArticleWithAI } from '../services/geminiService';
 
@@ -12,6 +12,8 @@ interface WorkspaceProps {
   article: Article | null;
   answers: W1HAnswers;
   setAnswers: React.Dispatch<React.SetStateAction<W1HAnswers>>;
+  quotes: W1HQuotes;
+  setQuotes: React.Dispatch<React.SetStateAction<W1HQuotes>>;
   onSave: () => void;
   onPrint: () => void;
 }
@@ -20,6 +22,8 @@ const Workspace: React.FC<WorkspaceProps> = ({
   article, 
   answers, 
   setAnswers, 
+  quotes,
+  setQuotes,
   onSave, 
   onPrint 
 }) => {
@@ -34,12 +38,110 @@ const Workspace: React.FC<WorkspaceProps> = ({
     setIsAiWorking(true);
     try {
       const result = await analyzeArticleWithAI(article.content);
-      setAnswers(result);
+      setAnswers(result.answers);
+      setQuotes(result.quotes);
     } catch (error) {
       alert("AI 분석에 실패했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
       setIsAiWorking(false);
     }
+  };
+
+  // Function to highlight text based on quotes
+  const renderHighlightedContent = (content: string) => {
+    // If no quotes, return plain text split by paragraphs
+    const hasQuotes = Object.values(quotes).some(arr => arr.length > 0);
+    if (!hasQuotes) {
+      return content.split('\n').filter(p => p.trim() !== '').map((paragraph, idx) => (
+        <p key={idx} className="mb-6 last:mb-0 text-justify break-keep whitespace-pre-line">
+          {paragraph}
+        </p>
+      ));
+    }
+
+    // Helper to get color class based on type
+    const getHighlightClass = (type: string) => {
+      switch(type) {
+        case 'who': return 'bg-red-200/80 rounded px-0.5 box-decoration-clone';
+        case 'when': return 'bg-orange-200/80 rounded px-0.5 box-decoration-clone';
+        case 'where': return 'bg-amber-200/80 rounded px-0.5 box-decoration-clone';
+        case 'what': return 'bg-emerald-200/80 rounded px-0.5 box-decoration-clone';
+        case 'how': return 'bg-sky-200/80 rounded px-0.5 box-decoration-clone';
+        case 'why': return 'bg-violet-200/80 rounded px-0.5 box-decoration-clone';
+        default: return '';
+      }
+    };
+
+    return content.split('\n').filter(p => p.trim() !== '').map((paragraph, pIdx) => {
+      // Find all matches in this paragraph
+      interface Match {
+        start: number;
+        end: number;
+        type: string;
+      }
+      let matches: Match[] = [];
+
+      (Object.keys(quotes) as Array<keyof W1HQuotes>).forEach(type => {
+        quotes[type].forEach(quote => {
+          if (!quote || quote.length < 2) return; // Skip too short quotes
+          let startIndex = 0;
+          let index;
+          // Find all occurrences of the quote in the paragraph
+          while ((index = paragraph.indexOf(quote, startIndex)) > -1) {
+            matches.push({
+              start: index,
+              end: index + quote.length,
+              type: type
+            });
+            startIndex = index + 1;
+          }
+        });
+      });
+
+      // Sort matches by start position
+      matches.sort((a, b) => a.start - b.start);
+
+      // Resolve overlaps (simple strategy: if overlaps, keep the first one and skip the second)
+      // A better strategy might be needed for nested overlaps, but this is decent for now.
+      const consolidatedMatches: Match[] = [];
+      let lastEnd = 0;
+      
+      matches.forEach(match => {
+        if (match.start >= lastEnd) {
+          consolidatedMatches.push(match);
+          lastEnd = match.end;
+        }
+      });
+
+      // Build the paragraph elements
+      const elements = [];
+      let currentIdx = 0;
+
+      consolidatedMatches.forEach((match, mIdx) => {
+        // Text before match
+        if (match.start > currentIdx) {
+          elements.push(paragraph.substring(currentIdx, match.start));
+        }
+        // Match text
+        elements.push(
+          <span key={`match-${pIdx}-${mIdx}`} className={getHighlightClass(match.type)} title={match.type.toUpperCase()}>
+            {paragraph.substring(match.start, match.end)}
+          </span>
+        );
+        currentIdx = match.end;
+      });
+
+      // Remaining text
+      if (currentIdx < paragraph.length) {
+        elements.push(paragraph.substring(currentIdx));
+      }
+
+      return (
+        <p key={pIdx} className="mb-6 last:mb-0 text-justify break-keep whitespace-pre-line leading-loose">
+          {elements}
+        </p>
+      );
+    });
   };
 
   if (!article) {
@@ -104,13 +206,9 @@ const Workspace: React.FC<WorkspaceProps> = ({
             {article.title}
           </h1>
           
-          {/* Content Box */}
+          {/* Content Box with Highlighting */}
           <div className="prose prose-lg max-w-none text-slate-700 leading-9 md:leading-10 bg-slate-50 p-8 rounded-2xl border border-slate-100 print-bg-white print-border-0 print-p-0 print-text-black shadow-inner transition-all duration-500">
-            {article.content.split('\n').filter(p => p.trim() !== '').map((paragraph, idx) => (
-              <p key={idx} className="mb-6 last:mb-0 text-justify break-keep whitespace-pre-line">
-                {paragraph}
-              </p>
-            ))}
+            {renderHighlightedContent(article.content)}
           </div>
         </div>
 

@@ -17,6 +17,20 @@ export interface W1HAnswers {
   why: string;
 }
 
+export interface W1HQuotes {
+  who: string[];
+  when: string[];
+  where: string[];
+  what: string[];
+  how: string[];
+  why: string[];
+}
+
+export interface AnalysisResult {
+  answers: W1HAnswers;
+  quotes: W1HQuotes;
+}
+
 export interface SavedDocument {
   id: number;
   date: string;

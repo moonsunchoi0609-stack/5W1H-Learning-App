@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BookOpen, Save, Trash2, Clock, ChevronRight, Menu, X } from 'lucide-react';
-import { Article, SavedDocument, W1HAnswers, RECOMMENDED_ARTICLES, Difficulty } from './types';
+import { Article, SavedDocument, W1HAnswers, RECOMMENDED_ARTICLES, Difficulty, W1HQuotes } from './types';
 import { generateEducationalArticle } from './services/geminiService';
 import Sidebar from './components/Sidebar';
 import Workspace from './components/Workspace';
@@ -9,12 +9,17 @@ const INITIAL_ANSWERS: W1HAnswers = {
   who: '', when: '', where: '', what: '', how: '', why: ''
 };
 
+const INITIAL_QUOTES: W1HQuotes = {
+  who: [], when: [], where: [], what: [], how: [], why: []
+};
+
 const App = () => {
   const [query, setQuery] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [articleList, setArticleList] = useState<Article[]>(RECOMMENDED_ARTICLES);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [answers, setAnswers] = useState<W1HAnswers>(INITIAL_ANSWERS);
+  const [quotes, setQuotes] = useState<W1HQuotes>(INITIAL_QUOTES);
   const [savedDocs, setSavedDocs] = useState<SavedDocument[]>([]);
   const [showSavedList, setShowSavedList] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -52,6 +57,7 @@ const App = () => {
   const handleSelectArticle = (article: Article) => {
     setSelectedArticle(article);
     setAnswers(INITIAL_ANSWERS);
+    setQuotes(INITIAL_QUOTES);
     // On mobile, close menu/sidebar after selection
     setMobileMenuOpen(false); 
     // Scroll to top
@@ -102,6 +108,7 @@ const App = () => {
       keywords: []
     });
     setAnswers(doc.answers);
+    setQuotes(INITIAL_QUOTES); // 저장된 문서에는 하이라이팅 정보가 없으므로 초기화
     setShowSavedList(false);
   };
 
@@ -214,6 +221,8 @@ const App = () => {
           article={selectedArticle} 
           answers={answers} 
           setAnswers={setAnswers}
+          quotes={quotes}
+          setQuotes={setQuotes}
           onSave={handleSave}
           onPrint={() => window.print()}
         />

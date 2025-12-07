@@ -1,18 +1,22 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { W1HAnswers, Article, Difficulty } from "../types";
+import { W1HAnswers, Article, Difficulty, AnalysisResult } from "../types";
 
 // Initialize Gemini Client
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const modelName = 'gemini-2.5-flash';
 
-export const analyzeArticleWithAI = async (articleText: string): Promise<W1HAnswers> => {
+export const analyzeArticleWithAI = async (articleText: string): Promise<AnalysisResult> => {
   try {
     const prompt = `
       다음 텍스트를 분석하여 육하원칙(누가, 언제, 어디서, 무엇을, 어떻게, 왜)에 해당하는 내용을 추출하세요.
-      결과는 한국어로 작성해야 하며, 초등학교 고학년이 이해하기 쉬운 문장으로 작성하세요.
-      명시되지 않은 정보는 문맥을 통해 합리적으로 추론하거나, 전혀 알 수 없는 경우 '알 수 없음'으로 표시하세요.
-      각 항목은 1~2문장으로 핵심만 요약하세요.
+      
+      [요구사항]
+      1. 'answers': 각 항목에 대한 요약 답변을 한국어로 작성하세요. 초등학교 고학년이 이해하기 쉬운 1~2문장으로 작성하세요.
+      2. 'quotes': 'answers'를 도출하는 데 결정적인 근거가 된 본문의 문구(단어 또는 문장 일부)를 그대로 발췌하여 리스트로 만드세요. 
+         - 본문에 있는 텍스트와 **정확히 일치**해야 하이라이팅이 가능합니다.
+         - 근거가 여러 군데라면 여러 개를 담으세요.
+      3. 명시되지 않은 정보는 문맥을 통해 합리적으로 추론하거나, 전혀 알 수 없는 경우 '알 수 없음'으로 표시하고 quotes는 빈 배열로 두세요.
 
       분석할 텍스트:
       ${articleText.substring(0, 5000)}
@@ -26,20 +30,38 @@ export const analyzeArticleWithAI = async (articleText: string): Promise<W1HAnsw
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            who: { type: Type.STRING },
-            when: { type: Type.STRING },
-            where: { type: Type.STRING },
-            what: { type: Type.STRING },
-            how: { type: Type.STRING },
-            why: { type: Type.STRING },
+            answers: {
+              type: Type.OBJECT,
+              properties: {
+                who: { type: Type.STRING },
+                when: { type: Type.STRING },
+                where: { type: Type.STRING },
+                what: { type: Type.STRING },
+                how: { type: Type.STRING },
+                why: { type: Type.STRING },
+              },
+              required: ["who", "when", "where", "what", "how", "why"],
+            },
+            quotes: {
+              type: Type.OBJECT,
+              properties: {
+                who: { type: Type.ARRAY, items: { type: Type.STRING } },
+                when: { type: Type.ARRAY, items: { type: Type.STRING } },
+                where: { type: Type.ARRAY, items: { type: Type.STRING } },
+                what: { type: Type.ARRAY, items: { type: Type.STRING } },
+                how: { type: Type.ARRAY, items: { type: Type.STRING } },
+                why: { type: Type.ARRAY, items: { type: Type.STRING } },
+              },
+              required: ["who", "when", "where", "what", "how", "why"],
+            }
           },
-          required: ["who", "when", "where", "what", "how", "why"],
+          required: ["answers", "quotes"],
         },
       },
     });
 
     if (response.text) {
-      return JSON.parse(response.text) as W1HAnswers;
+      return JSON.parse(response.text) as AnalysisResult;
     }
     throw new Error("No response text from AI");
   } catch (error) {
