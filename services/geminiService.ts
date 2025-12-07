@@ -1,13 +1,22 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { W1HAnswers, Article, Difficulty, AnalysisResult } from "../types";
 
-// Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Lazy Initialization of Gemini Client
+let ai: GoogleGenAI | null = null;
+
+const getAiClient = () => {
+  if (!ai) {
+    // API_KEY가 없는 경우에 대한 안전장치 추가 가능
+    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  }
+  return ai;
+};
 
 const modelName = 'gemini-2.5-flash';
 
 export const analyzeArticleWithAI = async (articleText: string): Promise<AnalysisResult> => {
   try {
+    const client = getAiClient();
     const prompt = `
       다음 텍스트를 분석하여 육하원칙(누가, 언제, 어디서, 무엇을, 어떻게, 왜)에 해당하는 내용을 추출하세요.
       
@@ -22,7 +31,7 @@ export const analyzeArticleWithAI = async (articleText: string): Promise<Analysi
       ${articleText.substring(0, 5000)}
     `;
 
-    const response = await ai.models.generateContent({
+    const response = await client.models.generateContent({
       model: modelName,
       contents: prompt,
       config: {
@@ -73,7 +82,8 @@ export const analyzeArticleWithAI = async (articleText: string): Promise<Analysi
 export const refineTextForW1H = async (text: string): Promise<string> => {
   // 더 이상 UI에서 호출되지 않지만, 하위 호환성을 위해 유지하거나 다른 용도로 남겨둡니다.
   try {
-    const response = await ai.models.generateContent({
+    const client = getAiClient();
+    const response = await client.models.generateContent({
         model: modelName,
         contents: `
           다음 텍스트를 읽고 학생들이 '육하원칙(5W1H)'을 스스로 찾아 빈칸을 채울 수 있도록 학습 자료용 지문으로 다듬어주세요.
@@ -103,6 +113,7 @@ export const generateEducationalArticle = async (topic: string, difficulty: Diff
   }
 
   try {
+    const client = getAiClient();
     const prompt = `
       '${topic}'에 대해 ${targetAudience} 학생들이 읽고 육하원칙(누가, 언제, 어디서, 무엇을, 어떻게, 왜)을 분석하기 좋은 교육용 지문을 작성해주세요.
 
@@ -127,7 +138,7 @@ export const generateEducationalArticle = async (topic: string, difficulty: Diff
       }
     `;
 
-    const response = await ai.models.generateContent({
+    const response = await client.models.generateContent({
       model: modelName,
       contents: prompt,
       config: {
@@ -165,7 +176,8 @@ export const generateEducationalArticle = async (topic: string, difficulty: Diff
 
 export const getRecommendedKeywords = async (): Promise<string[]> => {
   try {
-    const response = await ai.models.generateContent({
+    const client = getAiClient();
+    const response = await client.models.generateContent({
       model: modelName,
       contents: `초등학생이 탐구 학습 주제로 삼기 좋은 흥미로운 검색 키워드 6가지를 추천해주세요.
       역사, 과학, 사회, 시사, 인물 등 다양한 분야에서 랜덤하게 선정하여 매번 새로운 느낌을 주도록 하세요.
